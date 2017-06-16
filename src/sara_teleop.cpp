@@ -50,7 +50,7 @@ void AddPoint(){
         //}
     }
     ros::Duration T;
-    T.fromSec( Animation.points.size() );
+    T.fromNSec( (Animation.points.size()+1)*100000 );
     Point.time_from_start = T;
     Animation.points.push_back( Point );
 }
@@ -65,7 +65,7 @@ void ArmMode( sensor_msgs::JoyPtr joy ){
     std_msgs::Float64MultiArray VelMsg;
     VelMsg.data.push_back((joy->axes[0] * -15) );
     VelMsg.data.push_back((joy->axes[1] * -15) );
-    VelMsg.data.push_back((joy->axes[3] * -15) );
+    VelMsg.data.push_back((joy->axes[3] * 15) );
     VelMsg.data.push_back((joy->axes[4] * -15) );
     VelMsg.data.push_back(((joy->axes[2]) - (joy->axes[5])) * -30);
     VelMsg.data.push_back(0);
