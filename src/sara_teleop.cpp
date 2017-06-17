@@ -8,59 +8,61 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <controller_manager/controller_manager.h>
+#include <geometry_msgs/Twist.h>
+#include <dynamixel_msgs/JointState.h>
+#include <robotiq_c_model_control/c_model_ethercat_client.h>
+
 
 bool TeleopOn = false;
 int TeleopMode = 2;
 bool ArmTrajMode = false;
 bool OldArmTrajMode = true;
-sensor_msgs::JointState CurState;
+sensor_msgs::JointState CurArmState;
+robotiq_c_model_control::CModel_robot_output hand_cmd;
+bool pinceState = true;
 ros::Publisher ArmVelCtrlPub;
 ros::Publisher ArmTrjCtrlPub;
 ros::Publisher BaseVelCtrlPub;
-ros::Publisher HeadVelCtrlPub;
-ros::ServiceClient Switch;
-std::vector<std::string> TrajRessources;
+ros::Publisher HeadPosCtrlPub;
+ros::Publisher GripperCtrlPub;
 trajectory_msgs::JointTrajectory Animation;
+dynamixel_msgs::JointState CurHeadState;
 bool RB6 = false;
 bool RB7 = false;
 bool RB1 = false;
 bool RB2 = false;
 bool RB3 = false;
+bool RB4 = false;
+float OldHeadCmd = 0;
 
 
-
-
-void ModePlus(){
-    TeleopMode ++;
-    if ( TeleopMode > 2 ) TeleopMode = 1;
-}
-void ModeMoin(){
-    TeleopMode --;
-    if ( TeleopMode < 1 ) TeleopMode = 2;
-}
+void ModePlus(){ TeleopMode ++; if ( TeleopMode > 2 ) TeleopMode = 1; }
+void ModeMoin(){ TeleopMode --; if ( TeleopMode < 1 ) TeleopMode = 2; }
 void AddPoint(){
     trajectory_msgs::JointTrajectoryPoint Point;
-    int Length1 = CurState.name.size();
+    int Length1 = CurArmState.name.size();
     int Length2 = Animation.joint_names.size();
     for ( int i = 0; i < Length1; i++ ) {
-        //for ( int j=0; j < Length2; j++ ){
-            //if ( CurState.name[i] == Animation.joint_names[j]  ){
-                Point.positions.push_back( CurState.position[i] );
-            //}
-        //}
+        Point.positions.push_back( CurArmState.position[i] );
     }
     ros::Duration T;
-    T.fromNSec( (Animation.points.size()+1)*100000 );
+    T.fromNSec( (Animation.points.size()+1)*100000000 );
     Point.time_from_start = T;
     Animation.points.push_back( Point );
 }
-void ClearPoints(){
-    Animation.points.clear();
+void ClearPoints(){ Animation.points.clear(); }
+void LaunchAnimation(){ ArmTrajMode = true; }
+void ToggleGripper(){
+    if ( pinceState ) {
+        hand_cmd.rPR = 0;
+        pinceState = false;
+    } else {
+        hand_cmd.rPR = 250;
+        pinceState = true;
+    };
+    GripperCtrlPub.publish(hand_cmd);
 }
-void LaunchAnimation(){
-    ArmTrajMode = true;
-}
-void ArmMode( sensor_msgs::JoyPtr joy ){
+void ArmCtrl(sensor_msgs::JoyPtr joy){
 
     std_msgs::Float64MultiArray VelMsg;
     VelMsg.data.push_back((joy->axes[0] * -15) );
@@ -84,6 +86,10 @@ void ArmMode( sensor_msgs::JoyPtr joy ){
             LaunchAnimation();
             RB3 = true;
         } } else { RB3 = false; }
+    if ( joy->buttons[3] ){ if ( !RB4 ){
+            ToggleGripper();
+            RB4 = true;
+        } } else { RB4 = false; }
     if ( ArmTrajMode ) {
         int sum = 0;
         for (int i = 0; i < 7; i++) {
@@ -99,25 +105,38 @@ void ArmMode( sensor_msgs::JoyPtr joy ){
 }
 
 
-void BaseVelMode( sensor_msgs::JoyPtr joy ){
+void BaseVelCtrl(sensor_msgs::JoyPtr joy){
+    geometry_msgs::Twist twister;
     //ArmVelCtrlPub.publish( VelMsg );  // TODO
+    float safety = joy->axes[2] * joy->axes[5];
+    // linear velocity
+    twister.linear.x = joy->axes[1]*2*safety;
+    twister.linear.y = joy->axes[0]*2*safety;
+    // angular velocity
+    twister.angular.z = safety * (joy->axes[3]);
+
+    BaseVelCtrlPub.publish( twister );
 }
-void HeadVelMode( sensor_msgs::JoyPtr joy ){
-    //ArmVelCtrlPub.publish( VelMsg );  // TODO
+void HeaPoseCtrl(sensor_msgs::JoyPtr joy){
+    if ( joy->axes[6] != OldHeadCmd ){
+        CurHeadState.goal_pos += joy->axes[6]*0.5;
+        OldHeadCmd = joy->axes[6];
+    }
+    HeadPosCtrlPub.publish( CurHeadState );
 }
 void JoyCB( sensor_msgs::JoyPtr joy ){
     if (TeleopOn ) {
         switch ( TeleopMode ){
             case 1:
                 ROS_INFO("Arm and head Control Mode");
-                ROS_INFO("%d Points saved", Animation.points.size());
-                ArmMode( joy );
-                HeadVelMode( joy );
+                ROS_INFO("%d Points saved", (int)Animation.points.size());
+                ArmCtrl(joy);
+                HeaPoseCtrl(joy);
                 break;
             case 2:
                 ROS_INFO("Base and head Control Mode");
-                BaseVelMode( joy );
-                HeadVelMode( joy );
+                BaseVelCtrl(joy);
+                HeaPoseCtrl(joy);
                 break;
             default:
                 ROS_INFO("invalid mode");
@@ -139,26 +158,47 @@ void JoyCB( sensor_msgs::JoyPtr joy ){
 
 }
 
-void StateCB( sensor_msgs::JointState State ){
-    CurState = State;
+void ArmStateCB(sensor_msgs::JointState State){
+    CurArmState = State;
+}
+void HeadStateCB(dynamixel_msgs::JointState State){
+    CurHeadState = State;
 }
 
 
 int main(int argc, char **argv) {
+    sleep(5);
+
     ros::init(argc, argv, "sara_teleop");
     ros::NodeHandle nh;
 
+
     // Subscribers
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
-    ros::Subscriber StateSub = nh.subscribe("joint_states", 1, &StateCB);
+    ros::Subscriber ArmStateSub = nh.subscribe("joint_states", 1, &ArmStateCB);
+    ros::Subscriber HeadStateSub = nh.subscribe("neckHead_controller/state", 1, &HeadStateCB);
 
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     ArmTrjCtrlPub = nh.advertise<trajectory_msgs::JointTrajectory>( "sara_arm_trajectory_controller/command", 1 );
+    GripperCtrlPub = nh.advertise<robotiq_c_model_control::CModel_robot_output>( "CModelRobotOutput", 1 );
+    // New base control publisher
     //BaseVelCtrlPub = nh.advertise<trajectory_msgs::JointTrajectory>( "", 1 );  // TODO
-    //HeadVelCtrlPub = nh.advertise<trajectory_msgs::JointTrajectory>( "", 1 );  // TODO
+    // Old base control publisher
+    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "safe_cmd_vel", 1 );
+    HeadPosCtrlPub = nh.advertise<dynamixel_msgs::JointState>( "/neckHead/state", 1 );  // TODO renew to roscontrol
+    // Old Head control publisher
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
     ros::ServiceClient Switch = nh.serviceClient<controller_manager_msgs::SwitchController>( "controller_manager/switch_controller");
+
+
+    hand_cmd.rACT = 1;
+    hand_cmd.rGTO = 1;
+    hand_cmd.rSP = 200;
+    hand_cmd.rFR = 0;
+    hand_cmd.rPR = 0;
+    pinceState = 1;
+
 
     ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>( "controller_manager/list_controllers");
     List.waitForExistence();
