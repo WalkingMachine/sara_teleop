@@ -27,6 +27,7 @@ ros::Publisher BaseVelCtrlPub;
 ros::Publisher HeadPosCtrlPub;
 ros::Publisher GripperCtrlPub;
 trajectory_msgs::JointTrajectory Animation;
+trajectory_msgs::JointTrajectory EmptyAnimation;
 ros::Duration Animation_duration;
 ros::Time Animation_time;
 dynamixel_msgs::JointState CurHeadState;
@@ -303,6 +304,7 @@ int main(int argc, char **argv) {
     for ( int i=0; i<Length1; i++ ){
         if( listmsg.response.controller[i].name == "sara_arm_trajectory_controller" ){
             Animation.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+            EmptyAnimation.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
         }
     }
     if ( Animation.joint_names.size() == 0 ) exit(1);
@@ -342,6 +344,7 @@ int main(int argc, char **argv) {
             Switch.call(msg);
             if ( ArmTrajMode ){
                 Switch.waitForExistence();
+                ArmTrjCtrlPub.publish( EmptyAnimation );
                 ArmTrjCtrlPub.publish( Animation );
             }
         }
