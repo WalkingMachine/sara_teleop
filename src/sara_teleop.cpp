@@ -3,6 +3,7 @@
 //
 
 #include <ros/ros.h>
+#include <std_msgs/builtin_uint8.h>
 #include <sensor_msgs/Joy.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64MultiArray.h>
@@ -26,6 +27,8 @@ ros::Publisher BaseVelCtrlPub;
 ros::Publisher HeadPosCtrlPub;
 ros::Publisher GripperCtrlPub;
 trajectory_msgs::JointTrajectory Animation;
+ros::Duration Animation_duration;
+ros::Time Animation_time;
 dynamixel_msgs::JointState CurHeadState;
 bool RB6 = false;
 bool RB7 = false;
@@ -36,8 +39,8 @@ bool RB4 = false;
 float OldHeadCmd = 0;
 
 
-void ModePlus(){ TeleopMode ++; if ( TeleopMode > 2 ) TeleopMode = 1; }
-void ModeMoin(){ TeleopMode --; if ( TeleopMode < 1 ) TeleopMode = 2; }
+void ModePlus(){ TeleopMode ++; if ( TeleopMode > 3 ) TeleopMode = 1; }
+void ModeMoin(){ TeleopMode --; if ( TeleopMode < 1 ) TeleopMode = 3; }
 void AddPoint(){
     trajectory_msgs::JointTrajectoryPoint Point;
     int Length1 = CurArmState.name.size();
@@ -46,12 +49,18 @@ void AddPoint(){
         Point.positions.push_back( CurArmState.position[i] );
     }
     ros::Duration T;
-    T.fromNSec( (Animation.points.size()+1)*100000000 );
+    T.fromNSec( (Animation.points.size()+1)*1000000000 );
     Point.time_from_start = T;
     Animation.points.push_back( Point );
 }
 void ClearPoints(){ Animation.points.clear(); }
-void LaunchAnimation(){ ArmTrajMode = true; }
+void LaunchAnimation(){
+    ArmTrajMode = true;
+    ros::Duration T;
+    T.fromNSec( 5000000000 );
+    Animation_duration = Animation.points[Animation.points.size()-1].time_from_start+T;
+    Animation_time = ros::Time::now();
+}
 void ToggleGripper(){
     if ( pinceState ) {
         hand_cmd.rPR = 0;
@@ -74,19 +83,19 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
     VelMsg.data.push_back(0);
     ArmVelCtrlPub.publish( VelMsg );
 
-    if ( joy->buttons[0] ){ if ( !RB1 ){
+    if ( joy->buttons[0] == 1 ){ if ( !RB1 ){
             AddPoint();
             RB1 = true;
         } } else { RB1 = false; }
-    if ( joy->buttons[1] ){ if ( !RB2 ){
+    if ( joy->buttons[1] == 1 ){ if ( !RB2 ){
             ClearPoints();
             RB2 = true;
         } } else { RB2 = false; }
-    if ( joy->buttons[2] ){ if ( !RB3 ){
+    if ( joy->buttons[2] == 1 ){ if ( !RB3 ){
             LaunchAnimation();
             RB3 = true;
         } } else { RB3 = false; }
-    if ( joy->buttons[3] ){ if ( !RB4 ){
+    if ( joy->buttons[3] == 1 ){ if ( !RB4 ){
             ToggleGripper();
             RB4 = true;
         } } else { RB4 = false; }
@@ -138,6 +147,9 @@ void JoyCB( sensor_msgs::JoyPtr joy ){
                 BaseVelCtrl(joy);
                 HeaPoseCtrl(joy);
                 break;
+            case 3:
+                ROS_INFO("Emotion Mode");
+                break;
             default:
                 ROS_INFO("invalid mode");
                 TeleopOn = false;
@@ -164,8 +176,89 @@ void ArmStateCB(sensor_msgs::JointState State){
 void HeadStateCB(dynamixel_msgs::JointState State){
     CurHeadState = State;
 }
+void EmotionCB( std_msgs::UInt8 msg ){
 
+    if ( TeleopMode == 3 ){
 
+        ClearPoints();
+        ArmTrajMode = false;
+        trajectory_msgs::JointTrajectoryPoint Point;
+        ros::Duration T;
+        T.fromNSec( 1000000000 );
+        Point.time_from_start = T;
+
+        ClearPoints();
+        switch ( msg.data ){
+            case 1:
+                Point.positions.push_back(-1.271065294203758);
+                Point.positions.push_back(-0.0735725925779338);
+                Point.positions.push_back(-0.15369062621414642);
+                Point.positions.push_back(0.09231440647125311);
+                Point.positions.push_back(0.24865288876563296);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 2:
+                Point.positions.push_back(-0.26353138504505136);
+                Point.positions.push_back(-0.0735725925779338);
+                Point.positions.push_back(-0.024048386748432904);
+                Point.positions.push_back(-0.21522563680291107);
+                Point.positions.push_back(-0.3009808390942216);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 3:
+                Point.positions.push_back(-0.6734447105669972);
+                Point.positions.push_back(-0.0735725925779338);
+                Point.positions.push_back(-0.1412601866841312);
+                Point.positions.push_back(0.33580406482577363);
+                Point.positions.push_back(1.1159385283759236);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 4:
+                Point.positions.push_back(-1.1911567970728871);
+                Point.positions.push_back(-0.7961188781499859);
+                Point.positions.push_back(0.002787640710473216);
+                Point.positions.push_back(0.5152137522304061);
+                Point.positions.push_back(1.2064008119031786);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 5:
+                Point.positions.push_back(-2.0002837913560865);
+                Point.positions.push_back(-1.0735725925779338);
+                Point.positions.push_back(-0.22417147863149633);
+                Point.positions.push_back(0.37477972735285814);
+                Point.positions.push_back(-0.7965404790809751);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 6:
+                Point.positions.push_back(-1.5349146354472634);
+                Point.positions.push_back(-1.0735725925779338);
+                Point.positions.push_back(-0.576672176196575);
+                Point.positions.push_back(-0.2563539639103407);
+                Point.positions.push_back(1.6242166035541892);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            case 7:
+                Point.positions.push_back(-1.2568786054480072);
+                Point.positions.push_back(-4.796351678194171);
+                Point.positions.push_back(-2.4977602503213285);
+                Point.positions.push_back(-0.5666054357790946);
+                Point.positions.push_back(0.9409450241187216);
+                Point.positions.push_back(0.0);
+                Point.positions.push_back(0.0);
+                break;
+            default:
+                break;
+        }
+        Animation.points.push_back( Point );
+        LaunchAnimation();
+    }
+}
 int main(int argc, char **argv) {
     sleep(5);
 
@@ -176,7 +269,9 @@ int main(int argc, char **argv) {
     // Subscribers
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
     ros::Subscriber ArmStateSub = nh.subscribe("joint_states", 1, &ArmStateCB);
+    ros::Subscriber ArmTrajSub = nh.subscribe("sara_arm_trajectory_controller/state", 1, &ArmStateCB);
     ros::Subscriber HeadStateSub = nh.subscribe("neckHead_controller/state", 1, &HeadStateCB);
+    ros::Subscriber EmotionSub = nh.subscribe("sara_face/Emotion", 1, &EmotionCB);
 
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
@@ -228,6 +323,9 @@ int main(int argc, char **argv) {
 
     ROS_INFO("start teleop");
     while ( ros::ok() ){
+        if ( ArmTrajMode && ros::Time::now() > Animation_time+Animation_duration ) {
+            ArmTrajMode = false;
+        }
         if ( OldArmTrajMode != ArmTrajMode ) {
             controller_manager_msgs::SwitchController msg;
             msg.request.strictness = 50;
