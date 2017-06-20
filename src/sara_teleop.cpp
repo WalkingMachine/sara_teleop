@@ -136,12 +136,14 @@ void HeaPoseCtrl(sensor_msgs::JoyPtr joy){
 }
 void JoyCB( sensor_msgs::JoyPtr joy ){
     if (TeleopOn ) {
+        geometry_msgs::Twist twister;
         switch ( TeleopMode ){
             case 1:
                 ROS_INFO("Arm and head Control Mode");
                 ROS_INFO("%d Points saved", (int)Animation.points.size());
                 ArmCtrl(joy);
                 HeaPoseCtrl(joy);
+                BaseVelCtrlPub.publish( twister );
                 break;
             case 2:
                 ROS_INFO("Base and head Control Mode");
@@ -150,9 +152,11 @@ void JoyCB( sensor_msgs::JoyPtr joy ){
                 break;
             case 3:
                 ROS_INFO("Emotion Mode");
+                BaseVelCtrlPub.publish( twister );
                 break;
             default:
                 ROS_INFO("invalid mode");
+                BaseVelCtrlPub.publish( twister );
                 TeleopOn = false;
                 break;
         }
