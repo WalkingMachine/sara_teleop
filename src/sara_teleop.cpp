@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
     // New base control publisher
     //BaseVelCtrlPub = nh.advertise<trajectory_msgs::JointTrajectory>( "", 1 );  // TODO
     // Old base control publisher
-    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "safe_cmd_vel", 1 );
+    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
     HeadPosCtrlPub = nh.advertise<dynamixel_msgs::JointState>( "/neckHead/state", 1 );  // TODO renew to roscontrol
     // Old Head control publisher
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
