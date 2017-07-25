@@ -10,6 +10,7 @@
 
     <!--   Start kinova hardware  -->
     <node pkg="sara_teleop" type="sara_teleop" name="sara_teleop" output="screen">
+        <remap from="cmd_vel" to="sara_mecanum_base_controller/cmd_vel"/>
     </node>
 
 </launch>

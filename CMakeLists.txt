@@ -7,7 +7,6 @@ project(sara_teleop)
 find_package(catkin REQUIRED COMPONENTS
     roscpp
     controller_manager
-    robotiq_c_model_control
 )
 
 ## System dependencies are found with CMake's conventions
