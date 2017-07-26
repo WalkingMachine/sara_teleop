@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
 
     // Old base control publisher
-    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
+    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "safe_cmd_vel", 1 );
 
     ros::spin();
     return 0;
