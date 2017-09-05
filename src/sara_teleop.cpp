@@ -14,7 +14,7 @@ ros::Publisher BaseVelCtrlPub;
 void BaseVelCtrl(sensor_msgs::JoyPtr joy){
     geometry_msgs::Twist twister;
     //ArmVelCtrlPub.publish( VelMsg );  // TODO
-    float safety = joy->buttons[6] * joy->buttons[7];
+    float safety = joy->buttons[4] * joy->buttons[5];
     // linear velocity
     twister.linear.x = joy->axes[1]*2*safety;
     twister.linear.y = joy->axes[0]*2*safety;
@@ -33,7 +33,7 @@ void JoyCB( sensor_msgs::JoyPtr joy )
     } else
     {
         ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
-        if (joy->buttons[6] && joy->buttons[7])
+        if (joy->buttons[4] && joy->buttons[5])
         {
             TeleopOn = true;
         }
