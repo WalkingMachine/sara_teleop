@@ -38,13 +38,13 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         VelMsg.data.push_back( vel );
     }
     ArmVelCtrlPub.publish( VelMsg );
-    if ( joy->buttons[1] && !Buttons[1] ){
+    if ( joy->buttons[7] && !Buttons[7] ){
         JointIndex++;
         wm_tts::say msg;
         msg.sentence = JointNames[JointIndex];
         SayPub.publish( msg );
     }
-    if ( joy->buttons[2] && !Buttons[2] ){
+    if ( joy->buttons[6] && !Buttons[6] ){
         JointIndex--;
         wm_tts::say msg;
         msg.sentence = JointNames[JointIndex];
