@@ -75,7 +75,6 @@ void JoyCB( sensor_msgs::JoyPtr joy )
     if (TeleopOn)
     {
         geometry_msgs::Twist twister;
-        ROS_INFO("Base Control Mode");
         BaseVelCtrl(joy);
         ArmCtrl( joy);
     } else
