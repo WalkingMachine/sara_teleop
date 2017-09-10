@@ -19,13 +19,13 @@ ros::Publisher BaseVelCtrlPub;
 int JointIndex = 0;
 bool Buttons[30] = {false};
 std::string JointNames[NBJOINTS] = {
-        "sara_right_shoulder_roll_joint"
-        , "sara_right_shoulder_pitch_joint"
-        , "sara_right_shoulder_yaw_joint"
-        , "sara_right_elbow_pitch_joint"
-        , "sara_right_elbow_yaw_joint"
-        , "sara_right_wrist_pitch_joint"
-        , "sara_right_wrist_roll_joint"};
+        "right shoulder roll joint"
+        , "right shoulder pitch joint"
+        , "right shoulder yaw joint"
+        , "right elbow pitch joint"
+        , "right elbow yaw joint"
+        , "right wrist pitch joint"
+        , "right wrist roll joint"};
 
 
 void ArmCtrl(sensor_msgs::JoyPtr joy){
