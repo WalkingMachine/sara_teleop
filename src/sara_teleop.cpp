@@ -38,7 +38,7 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
     for ( int i=0; i<NBJOINTS; i++ ){
         double vel = 0;
         if ( i == JointIndex )
-            vel = ((joy->axes[2]) - (joy->axes[5])) * -15;
+            vel = ((joy->axes[2]) - (joy->axes[5])) * -0.15;
         VelMsg.data.push_back( vel );
     }
     ArmVelCtrlPub.publish( VelMsg );
