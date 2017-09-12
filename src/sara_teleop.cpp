@@ -40,7 +40,7 @@ void Say( std::string sentence ){
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
     std_msgs::Float64 msg;
-    HeadAngle += joy->axes[4]*-0.0012;
+    HeadAngle += joy->axes[4]*-0.01;
     HeadAngle = HeadAngle < MAXHEADANGLE ? HeadAngle : MAXHEADANGLE;
     HeadAngle = HeadAngle > MINHEADANGLE ? HeadAngle : MINHEADANGLE;
     msg.data = HeadAngle;
