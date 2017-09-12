@@ -6,14 +6,61 @@
 #include <std_msgs/builtin_uint8.h>
 #include <sensor_msgs/Joy.h>
 #include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <controller_manager/controller_manager.h>
+#include <wm_tts/say.h>
 
+#define NBJOINTS 7
 
+ros::Publisher SayPub;
+ros::Publisher ArmVelCtrlPub;
 bool TeleopOn = false;
 ros::Publisher BaseVelCtrlPub;
+int JointIndex = 0;
+bool Buttons[30] = {false};
+std::string JointNames[NBJOINTS] = {
+        "right shoulder roll joint"
+        , "right shoulder pitch joint"
+        , "right shoulder yaw joint"
+        , "right elbow pitch joint"
+        , "right elbow yaw joint"
+        , "right wrist pitch joint"
+        , "right wrist roll joint"};
+
+void Say( std::string sentence ){
+    wm_tts::say msg;
+    msg.sentence = sentence;
+    SayPub.publish( msg );
+}
+void ArmCtrl(sensor_msgs::JoyPtr joy){
+
+    std_msgs::Float64MultiArray VelMsg;
+    for ( int i=0; i<NBJOINTS; i++ ){
+        double vel = 0;
+        if ( i == JointIndex )
+            vel = ((joy->axes[2]) - (joy->axes[5])) * -0.15;
+        VelMsg.data.push_back( vel );
+    }
+    ArmVelCtrlPub.publish( VelMsg );
+    if ( joy->buttons[7] && !Buttons[7] ){
+        JointIndex++;
+        if ( JointIndex >= NBJOINTS ) JointIndex = 0;
+        Say( JointNames[JointIndex] );
+    }
+    if ( joy->buttons[6] && !Buttons[6] ){
+        JointIndex--;
+        if ( JointIndex < 0 ) JointIndex = NBJOINTS;
+        Say( JointNames[JointIndex] );
+    }
+    for ( int i=0; i<joy->buttons.size(); i++ ){
+        Buttons[i] = (bool)joy->buttons[i];
+    }
+
+}
 
 void BaseVelCtrl(sensor_msgs::JoyPtr joy){
     geometry_msgs::Twist twister;
-    //ArmVelCtrlPub.publish( VelMsg );  // TODO
+
     float safety = joy->buttons[4] * joy->buttons[5];
     // linear velocity
     twister.linear.x = joy->axes[1]*2*safety;
@@ -28,20 +75,21 @@ void JoyCB( sensor_msgs::JoyPtr joy )
     if (TeleopOn)
     {
         geometry_msgs::Twist twister;
-        ROS_INFO("Base Control Mode");
         BaseVelCtrl(joy);
+        ArmCtrl( joy);
     } else
     {
-        ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
-        if (joy->buttons[4] && joy->buttons[5])
+        if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
+        //if (joy->buttons[4] && joy->buttons[5])
         {
+            ROS_INFO("Teleop is now on. Please be gentle with me.");
+            Say( "Good! I'm now ready to move." );
             TeleopOn = true;
         }
     }
 }
 
 int main(int argc, char **argv) {
-    sleep(5);
 
     ros::init(argc, argv, "sara_teleop");
     ros::NodeHandle nh;
@@ -49,9 +97,36 @@ int main(int argc, char **argv) {
     // Subscribers
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
 
-    // Old base control publisher
+    // Publishers
+    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
+    SayPub = nh.advertise<wm_tts::say>( "say", 1 );
 
+    // controller services
+    ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
+    ros::ServiceClient Switch = nh.serviceClient<controller_manager_msgs::SwitchController>( "controller_manager/switch_controller");
+    ROS_INFO("Waiting for controller manager");
+
+    // Load controllers
+    controller_manager_msgs::LoadController msg;
+    Load.waitForExistence( );
+    msg.request.name = "sara_arm_velocity_controller";
+    Load.call( msg );
+    msg.request.name = "sara_base_mecanum_controller";
+    Load.call( msg );
+    msg.request.name = "sara_head_pitch_controller";
+    Load.call( msg );
+
+    // switch arm to velocity mode
+    controller_manager_msgs::SwitchController msg2;
+    msg2.request.strictness = 50;
+    msg2.request.start_controllers.push_back("sara_arm_velocity_controller");
+    msg2.request.stop_controllers.push_back("sara_arm_trajectory_controller");
+    Switch.waitForExistence();
+    Switch.call(msg2);
+
+    ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
+    Say( "I'm now in teleop mode, press both triggers to turn me on." );
     ros::spin();
     return 0;
 }
