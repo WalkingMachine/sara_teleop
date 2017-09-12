@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
-    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "sara_head_pitch_position_controller", 1 );
+    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
 
     // controller services
