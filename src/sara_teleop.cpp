@@ -12,6 +12,8 @@
 #include <std_msgs/Float64.h>
 
 #define NBJOINTS 7
+#define MAXHEADANGLE 0.6
+#define MINHEADANGLE -0.8
 
 ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
@@ -38,9 +40,9 @@ void Say( std::string sentence ){
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
     std_msgs::Float64 msg;
-    HeadAngle += joy->axes[4]*-0.06;
-    HeadAngle = HeadAngle < 0.6 ? HeadAngle : 0.6;
-    HeadAngle = HeadAngle > -0.6 ? HeadAngle : -0.6;
+    HeadAngle += joy->axes[4]*-0.001;
+    HeadAngle = HeadAngle < MAXHEADANGLE ? HeadAngle : MAXHEADANGLE;
+    HeadAngle = HeadAngle > MINHEADANGLE ? HeadAngle : MINHEADANGLE;
     msg.data = HeadAngle;
 
     HeadCtrlPub.publish( msg );
