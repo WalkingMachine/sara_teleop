@@ -37,7 +37,7 @@ void Say( std::string sentence ){
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
     std_msgs::Float64 msg;
-    msg.data = joy->axes[2]*0.6;
+    msg.data = joy->axes[4]*0.6;
 
     HeadCtrlPub.publish( msg );
 
