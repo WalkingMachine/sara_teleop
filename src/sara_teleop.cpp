@@ -41,7 +41,7 @@ void Say( std::string sentence ){
     SayPub.publish( msg );
 }
 void HandCtrl(sensor_msgs::JoyPtr joy){
-    if ( joy->buttons[6] && !Buttons[6] ){
+    if ( joy->buttons[0] && !Buttons[0] ){
         if ( HandState == 0 )
             HandState = 0.1;
         else
