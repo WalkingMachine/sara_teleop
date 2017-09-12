@@ -10,6 +10,7 @@
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
 #include <std_msgs/Float64.h>
+#include <gripper_action_controller/gripper_action_controller.h>
 
 #define NBJOINTS 7
 #define MAXHEADANGLE 0.8
@@ -19,10 +20,12 @@ ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
 ros::Publisher BaseVelCtrlPub;
 ros::Publisher HeadCtrlPub;
+ros::Publisher HandCtrlPub;
 bool TeleopOn = false;
 int JointIndex = 0;
 bool Buttons[30] = {false};
 double HeadAngle = 0;
+double HandState = 0.1;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint"
         , "right shoulder pitch joint"
@@ -36,6 +39,17 @@ void Say( std::string sentence ){
     wm_tts::say msg;
     msg.sentence = sentence;
     SayPub.publish( msg );
+}
+void HandCtrl(sensor_msgs::JoyPtr joy){
+    if ( joy->buttons[6] && !Buttons[6] ){
+        if ( HandState == 0 )
+            HandState = 0.1;
+        else
+            HandState = 0;
+        gripper_action_controller::GripperActionController::Commands msg;
+        msg.position_ = HandState;
+        HandCtrlPub.publish( msg );
+    }
 }
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
@@ -68,9 +82,7 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         if ( JointIndex < 0 ) JointIndex = NBJOINTS;
         Say( JointNames[JointIndex] );
     }
-    for ( int i=0; i<joy->buttons.size(); i++ ){
-        Buttons[i] = (bool)joy->buttons[i];
-    }
+
 
 }
 
@@ -94,6 +106,10 @@ void JoyCB( sensor_msgs::JoyPtr joy )
         BaseVelCtrl(joy);
         ArmCtrl( joy);
         HeadCtrl( joy );
+        HandCtrl( joy );
+        for ( int i=0; i<joy->buttons.size(); i++ ){
+            Buttons[i] = (bool)joy->buttons[i];
+        }
     } else
     {
         if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
@@ -119,6 +135,7 @@ int main(int argc, char **argv) {
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
     HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
+    HandCtrlPub = nh.advertise<gripper_action_controller::GripperActionController::Commands>( "/sara_gripper_action_controller/goal", 1 );
 
     // controller services
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
