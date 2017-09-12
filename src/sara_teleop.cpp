@@ -9,13 +9,15 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
+#include <std_msgs/Float64.h>
 
 #define NBJOINTS 7
 
 ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
-bool TeleopOn = false;
 ros::Publisher BaseVelCtrlPub;
+ros::Publisher HeadCtrlPub;
+bool TeleopOn = false;
 int JointIndex = 0;
 bool Buttons[30] = {false};
 std::string JointNames[NBJOINTS] = {
@@ -31,6 +33,14 @@ void Say( std::string sentence ){
     wm_tts::say msg;
     msg.sentence = sentence;
     SayPub.publish( msg );
+}
+void HeadCtrl(sensor_msgs::JoyPtr joy){
+
+    std_msgs::Float64 msg;
+    msg.data = joy->axes[2]*0.6;
+
+    HeadCtrlPub.publish( msg );
+
 }
 void ArmCtrl(sensor_msgs::JoyPtr joy){
 
@@ -77,6 +87,7 @@ void JoyCB( sensor_msgs::JoyPtr joy )
         geometry_msgs::Twist twister;
         BaseVelCtrl(joy);
         ArmCtrl( joy);
+        HeadCtrl( joy );
     } else
     {
         if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
@@ -100,6 +111,7 @@ int main(int argc, char **argv) {
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
+    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "sara_head_pitch_position_controller", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
 
     // controller services
@@ -125,8 +137,17 @@ int main(int argc, char **argv) {
     Switch.waitForExistence();
     Switch.call(msg2);
 
+    // start the loop
     ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
     Say( "I'm now in teleop mode, press both triggers to turn me on." );
     ros::spin();
+
+    // switch arm to trajectory mode mode
+    msg2.request.strictness = 50;
+    msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
+    msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
+    Switch.waitForExistence();
+    Switch.call(msg2);
+
     return 0;
 }
