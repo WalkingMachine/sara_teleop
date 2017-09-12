@@ -20,6 +20,7 @@ ros::Publisher HeadCtrlPub;
 bool TeleopOn = false;
 int JointIndex = 0;
 bool Buttons[30] = {false};
+double HeadAngle = 0;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint"
         , "right shoulder pitch joint"
@@ -37,7 +38,10 @@ void Say( std::string sentence ){
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
     std_msgs::Float64 msg;
-    msg.data = joy->axes[4]*0.6;
+    HeadAngle += joy->axes[4]*-0.06;
+    HeadAngle = HeadAngle < 0.6 ? HeadAngle : 0.6;
+    HeadAngle = HeadAngle > -0.6 ? HeadAngle : -0.6;
+    msg.data = HeadAngle;
 
     HeadCtrlPub.publish( msg );
 
