@@ -10,7 +10,7 @@
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
 #include <std_msgs/Float64.h>
-#include <control_msgs/GripperCommand.h>
+#include <control_msgs/GripperCommandActionGoal.h>
 
 #define NBJOINTS 7
 #define MAXHEADANGLE 0.8
@@ -46,8 +46,8 @@ void HandCtrl(sensor_msgs::JoyPtr joy){
             HandState = 0.1;
         else
             HandState = 0;
-        control_msgs::GripperCommand msg;
-        msg.position = HandState;
+        control_msgs::GripperCommandActionGoal msg;
+        msg.goal.command.position = HandState;
         HandCtrlPub.publish( msg );
     }
 }
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
     HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
-    HandCtrlPub = nh.advertise<control_msgs::GripperCommand>( "/sara_gripper_action_controller/gripper_cmd/goal", 1 );
+    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>( "/sara_gripper_action_controller/gripper_cmd/goal", 1 );
 
     // controller services
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
