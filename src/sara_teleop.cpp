@@ -9,15 +9,23 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
+#include <std_msgs/Float64.h>
+#include <control_msgs/GripperCommandActionGoal.h>
 
 #define NBJOINTS 7
+#define MAXHEADANGLE 0.8
+#define MINHEADANGLE -0.8
 
 ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
-bool TeleopOn = false;
 ros::Publisher BaseVelCtrlPub;
+ros::Publisher HeadCtrlPub;
+ros::Publisher HandCtrlPub;
+bool TeleopOn = false;
 int JointIndex = 0;
 bool Buttons[30] = {false};
+double HeadAngle = 0;
+double HandState = 0.1;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint"
         , "right shoulder pitch joint"
@@ -31,6 +39,28 @@ void Say( std::string sentence ){
     wm_tts::say msg;
     msg.sentence = sentence;
     SayPub.publish( msg );
+}
+void HandCtrl(sensor_msgs::JoyPtr joy){
+    if ( joy->buttons[0] && !Buttons[0] ){
+        if ( HandState == 0 )
+            HandState = 0.1;
+        else
+            HandState = 0;
+        control_msgs::GripperCommandActionGoal msg;
+        msg.goal.command.position = HandState;
+        HandCtrlPub.publish( msg );
+    }
+}
+void HeadCtrl(sensor_msgs::JoyPtr joy){
+
+    std_msgs::Float64 msg;
+    HeadAngle += joy->axes[4]*-0.01;
+    HeadAngle = HeadAngle < MAXHEADANGLE ? HeadAngle : MAXHEADANGLE;
+    HeadAngle = HeadAngle > MINHEADANGLE ? HeadAngle : MINHEADANGLE;
+    msg.data = HeadAngle;
+
+    HeadCtrlPub.publish( msg );
+
 }
 void ArmCtrl(sensor_msgs::JoyPtr joy){
 
@@ -52,9 +82,7 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         if ( JointIndex < 0 ) JointIndex = NBJOINTS;
         Say( JointNames[JointIndex] );
     }
-    for ( int i=0; i<joy->buttons.size(); i++ ){
-        Buttons[i] = (bool)joy->buttons[i];
-    }
+
 
 }
 
@@ -77,6 +105,11 @@ void JoyCB( sensor_msgs::JoyPtr joy )
         geometry_msgs::Twist twister;
         BaseVelCtrl(joy);
         ArmCtrl( joy);
+        HeadCtrl( joy );
+        HandCtrl( joy );
+        for ( int i=0; i<joy->buttons.size(); i++ ){
+            Buttons[i] = (bool)joy->buttons[i];
+        }
     } else
     {
         if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
@@ -100,7 +133,9 @@ int main(int argc, char **argv) {
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
+    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
+    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>( "/sara_gripper_action_controller/gripper_cmd/goal", 1 );
 
     // controller services
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
@@ -125,8 +160,17 @@ int main(int argc, char **argv) {
     Switch.waitForExistence();
     Switch.call(msg2);
 
+    // start the loop
     ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
     Say( "I'm now in teleop mode, press both triggers to turn me on." );
     ros::spin();
+
+    // switch arm to trajectory mode mode
+    msg2.request.strictness = 50;
+    msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
+    msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
+    Switch.waitForExistence();
+    Switch.call(msg2);
+
     return 0;
 }
