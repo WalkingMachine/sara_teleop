@@ -47,7 +47,7 @@ void ToggleArmMode(){
     controller_manager_msgs::SwitchController msg2;
     if (ArmMode){
         msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
-        msg2.request.stop_controllers.push_back("sara_arm_velocity_controller")
+        msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
         Say("Arm control off");
     } else {
         msg2.request.start_controllers.push_back("sara_arm_velocity_controller");
