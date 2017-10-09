@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
 
     // Publishers
-    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
+    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_trajectory_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
     HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
