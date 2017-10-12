@@ -82,24 +82,25 @@ void HeadCtrl(sensor_msgs::JoyPtr joy){
 
 }
 void ArmCtrl(sensor_msgs::JoyPtr joy){
-
-    std_msgs::Float64MultiArray VelMsg;
-    for ( int i=0; i<NBJOINTS; i++ ){
-        double vel = 0;
-        if ( i == JointIndex )
-            vel = ((joy->axes[2]) - (joy->axes[5])) * -0.15;
-        VelMsg.data.push_back( vel );
-    }
-    ArmVelCtrlPub.publish( VelMsg );
-    if ( joy->buttons[7] && !Buttons[7] ){
-        JointIndex++;
-        if ( JointIndex >= NBJOINTS ) JointIndex = 0;
-        Say( JointNames[JointIndex] );
-    }
-    if ( joy->buttons[6] && !Buttons[6] ){
-        JointIndex--;
-        if ( JointIndex < 0 ) JointIndex = NBJOINTS-1;
-        Say( JointNames[JointIndex] );
+    if (ArmMode) {
+        std_msgs::Float64MultiArray VelMsg;
+        for (int i = 0; i < NBJOINTS; i++) {
+            double vel = 0;
+            if (i == JointIndex)
+                vel = ((joy->axes[2]) - (joy->axes[5])) * -0.15;
+            VelMsg.data.push_back(vel);
+        }
+        ArmVelCtrlPub.publish(VelMsg);
+        if (joy->buttons[7] && !Buttons[7]) {
+            JointIndex++;
+            if (JointIndex >= NBJOINTS) JointIndex = 0;
+            Say(JointNames[JointIndex]);
+        }
+        if (joy->buttons[6] && !Buttons[6]) {
+            JointIndex--;
+            if (JointIndex < 0) JointIndex = NBJOINTS - 1;
+            Say(JointNames[JointIndex]);
+        }
     }
     if ( joy->buttons[1] && !Buttons[1] ){
         ToggleArmMode();
@@ -134,7 +135,7 @@ void JoyCB( sensor_msgs::JoyPtr joy )
     } else
     {
         if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
-        //if (joy->buttons[4] && joy->buttons[5])
+            //if (joy->buttons[4] && joy->buttons[5])
         {
             ROS_INFO("Teleop is now on. Please be gentle with me.");
             Say( "Good! I'm now ready to move. Press B to take control of my arm or A to open or close my gripper." );
@@ -152,7 +153,7 @@ int main(int argc, char **argv) {
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
 
     // Publishers
-    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_trajectory_controller/command", 1 );
+    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
     BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
     HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
     SayPub = nh.advertise<wm_tts::say>( "say", 1 );
