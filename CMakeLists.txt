@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
     wm_tts
     controller_manager
     trajectory_msgs
+    wm_trajectory_manager
 )
 
 ## System dependencies are found with CMake's conventions

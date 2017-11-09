@@ -13,6 +13,7 @@
 #include <std_msgs/Float64.h>
 #include <control_msgs/GripperCommandActionGoal.h>
 #include <trajectory_msgs/JointTrajectory.h>
+#include <wm_trajectory_manager/save_trajectory.h>
 
 #define NBJOINTS 7
 #define MAXHEADANGLE 0.8
@@ -32,6 +33,7 @@ double HandState = 0.1;
 bool ArmMode = false;
 ros::ServiceClient Switch;
 trajectory_msgs::JointTrajectory MyTrajectory;
+ros::ServiceClient save;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint"
         , "right shoulder pitch joint"
@@ -45,6 +47,12 @@ void Say( std::string sentence ){
     wm_tts::say msg;
     msg.sentence = sentence;
     SayPub.publish( msg );
+}
+void SaveTrajectory(){
+    wm_trajectory_manager::save_trajectory srv;
+    srv.request.trajectory = MyTrajectory;
+    srv.request.file = "new_trajectory";
+    save.call(srv);
 }
 void ResetTrajectory(){
     MyTrajectory.points.clear();
@@ -124,9 +132,16 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
             if (JointIndex < 0) JointIndex = NBJOINTS - 1;
             Say(JointNames[JointIndex]);
         }
+        if (joy->buttons[2] && !Buttons[2]) {
+            AddPointToTrajectory();
+        }
+        if (joy->buttons[3] && !Buttons[3]) {
+            SaveTrajectory();
+        }
     }
     if ( joy->buttons[1] && !Buttons[1] ){
         ToggleArmMode();
+        ResetTrajectory();
     }
 
 }
@@ -187,6 +202,8 @@ int main(int argc, char **argv) {
     ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
     Switch = nh.serviceClient<controller_manager_msgs::SwitchController>( "controller_manager/switch_controller");
     ROS_INFO("Waiting for controller manager");
+    save = nh.serviceClient<wm_trajectory_manager::save_trajectory>("save_trajectory");
+
 
     // Load controllers
     controller_manager_msgs::LoadController msg;
