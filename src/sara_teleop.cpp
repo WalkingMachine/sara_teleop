@@ -53,6 +53,7 @@ void SaveTrajectory(){
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
     save.call(srv);
+    Say("saving_trajectory");
 }
 void ResetTrajectory(){
     MyTrajectory.points.clear();
@@ -68,6 +69,7 @@ void AddPointToTrajectory(){
     T.fromNSec( (MyTrajectory.points.size()+1)*100000000 );
     Point.time_from_start = T;
     MyTrajectory.points.push_back(Point);
+    Say("adding point");
 }
 void ArmStateCB(sensor_msgs::JointState State){
     CurArmState = State;
