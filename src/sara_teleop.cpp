@@ -63,7 +63,11 @@ void AddPointToTrajectory(){
     unsigned long Length1 = CurArmState.name.size();
     unsigned long Length2 = MyTrajectory.joint_names.size();
     for ( int i = 0; i < Length1; i++ ) {
-        Point.positions.push_back( CurArmState.position[i] );
+        for ( int j=0; j<Length2; j++){
+            if ( CurArmState.name[j] == MyTrajectory.joint_names[i] ){
+                Point.positions.push_back( CurArmState.position[i] );
+            }
+        }
     }
     ros::Duration T;
     T.fromNSec( (MyTrajectory.points.size()+1)*100000000 );
