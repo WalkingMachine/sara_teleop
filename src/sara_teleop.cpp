@@ -5,17 +5,20 @@
 #include <ros/ros.h>
 #include <std_msgs/builtin_uint8.h>
 #include <sensor_msgs/Joy.h>
+#include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
 #include <std_msgs/Float64.h>
 #include <control_msgs/GripperCommandActionGoal.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 #define NBJOINTS 7
 #define MAXHEADANGLE 0.8
 #define MINHEADANGLE -0.8
 
+sensor_msgs::JointState CurArmState;
 ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
 ros::Publisher BaseVelCtrlPub;
@@ -28,6 +31,7 @@ double HeadAngle = 0;
 double HandState = 0.1;
 bool ArmMode = false;
 ros::ServiceClient Switch;
+trajectory_msgs::JointTrajectory MyTrajectory;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint"
         , "right shoulder pitch joint"
@@ -42,6 +46,25 @@ void Say( std::string sentence ){
     msg.sentence = sentence;
     SayPub.publish( msg );
 }
+void ResetTrajectory(){
+    MyTrajectory.points.clear();
+}
+void AddPointToTrajectory(){
+    trajectory_msgs::JointTrajectoryPoint Point;
+    unsigned long Length1 = CurArmState.name.size();
+    unsigned long Length2 = MyTrajectory.joint_names.size();
+    for ( int i = 0; i < Length1; i++ ) {
+        Point.positions.push_back( CurArmState.position[i] );
+    }
+    ros::Duration T;
+    T.fromNSec( (MyTrajectory.points.size()+1)*100000000 );
+    Point.time_from_start = T;
+    MyTrajectory.points.push_back(Point);
+}
+void ArmStateCB(sensor_msgs::JointState State){
+    CurArmState = State;
+}
+
 void ToggleArmMode(){
     // switch arm to trajectory mode mode
     controller_manager_msgs::SwitchController msg2;
@@ -150,6 +173,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh;
 
     // Subscribers
+    ros::Subscriber ArmStateSub = nh.subscribe("joint_states", 1, &ArmStateCB);
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
 
     // Publishers

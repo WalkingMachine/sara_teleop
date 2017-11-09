@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     wm_tts
     controller_manager
+    trajectory_msgs
 )
 
 ## System dependencies are found with CMake's conventions
