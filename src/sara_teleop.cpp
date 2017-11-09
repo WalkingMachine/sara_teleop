@@ -205,6 +205,19 @@ int main(int argc, char **argv) {
     save = nh.serviceClient<wm_trajectory_manager::save_trajectory>("save_trajectory");
 
 
+    ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>( "controller_manager/list_controllers");
+    List.waitForExistence();
+    controller_manager_msgs::ListControllers listmsg;
+    List.call(listmsg);
+    unsigned long Length1 = listmsg.response.controller.size();
+    for ( int i=0; i<Length1; i++ ){
+        if( listmsg.response.controller[i].name == "sara_arm_trajectory_controller" ){
+            MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+        }
+    }
+    if ( MyTrajectory.joint_names.size() == 0 ) exit(1);
+
+
     // Load controllers
     controller_manager_msgs::LoadController msg;
     Load.waitForExistence( );
