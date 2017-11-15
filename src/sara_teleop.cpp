@@ -53,7 +53,7 @@ void SaveTrajectory(){
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
     save.call(srv);
-    Say("saving_trajectory");
+    Say("saving trajectory");
 }
 void ResetTrajectory(){
     MyTrajectory.points.clear();
@@ -64,13 +64,13 @@ void AddPointToTrajectory(){
     unsigned long Length2 = MyTrajectory.joint_names.size();
     for ( int i = 0; i < Length1; i++ ) {
         for ( int j=0; j<Length2; j++){
-            if ( CurArmState.name[j] == MyTrajectory.joint_names[i] ){
+            if ( CurArmState.name[i] == MyTrajectory.joint_names[j] ){
                 Point.positions.push_back( CurArmState.position[i] );
             }
         }
     }
     ros::Duration T;
-    T.fromNSec( (MyTrajectory.points.size()+1)*100000000 );
+    T.fromSec( (MyTrajectory.points.size()+1) );
     Point.time_from_start = T;
     MyTrajectory.points.push_back(Point);
     Say("adding point");
