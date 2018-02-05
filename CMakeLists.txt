@@ -5,10 +5,12 @@ project(sara_teleop)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    wm_tts
-    controller_manager
-)
+        roscpp
+        wm_tts
+        controller_manager
+        trajectory_msgs
+        wm_trajectory_manager
+        )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -66,7 +68,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 #generate_messages(
 #        DEPENDENCIES
-        #   actionlib_msgs#   move_base_msgs#   wm_arm_msgs
+#   actionlib_msgs#   move_base_msgs#   wm_arm_msgs
 #)
 
 ################################################
@@ -99,8 +101,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#        INCLUDE_DIRS include
-#        CATKIN_DEPENDS actionlib actionlib_msgs move_base_msgs roscpp message_generation std_srvs std_msgs
+        #        INCLUDE_DIRS include
+        #        CATKIN_DEPENDS actionlib actionlib_msgs move_base_msgs roscpp message_generation std_srvs std_msgs
 )
 
 
@@ -112,7 +114,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-        ## Declare a C++ library
+## Declare a C++ library
 # add_library(sara_control
 #   src/${PROJECT_NAME}/sara_control.cpp
 # )
@@ -130,7 +132,7 @@ add_executable(sara_teleop src/sara_teleop.cpp)
 # add_dependencies(sara_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(sara_teleop ${catkin_LIBRARIES} rt)
+target_link_libraries(sara_teleop ${catkin_LIBRARIES} rt)
 
 #############
 ## Install ##
