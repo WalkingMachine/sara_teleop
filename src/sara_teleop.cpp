@@ -11,9 +11,11 @@
 #include <controller_manager/controller_manager.h>
 #include <wm_tts/say.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/String.h>
 #include <control_msgs/GripperCommandActionGoal.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <wm_trajectory_manager/save_trajectory.h>
+#include <stdio.h>
 
 #define NBJOINTS 7
 #define MAXHEADANGLE 0.8
@@ -24,6 +26,7 @@ ros::Publisher SayPub;
 ros::Publisher ArmVelCtrlPub;
 ros::Publisher BaseVelCtrlPub;
 ros::Publisher HeadCtrlPub;
+ros::Publisher HeadCtrlPubYaw;
 ros::Publisher HandCtrlPub;
 bool TeleopOn = false;
 int JointIndex = 0;
@@ -31,6 +34,12 @@ bool Buttons[30] = {false};
 double HeadAngle = 0;
 double HandState = 0.1;
 bool ArmMode = false;
+double rotvel = 0;
+double xvel = 0;
+double yvel = 0;
+
+std::string Sentence = "";
+
 ros::ServiceClient Switch;
 trajectory_msgs::JointTrajectory MyTrajectory;
 ros::ServiceClient save;
@@ -43,15 +52,19 @@ std::string JointNames[NBJOINTS] = {
         , "right wrist pitch joint"
         , "right wrist roll joint"};
 
+
+
 void Say( std::string sentence ){
     wm_tts::say msg;
     msg.sentence = sentence;
     SayPub.publish( msg );
 }
+
 void SaveTrajectory(){
     wm_trajectory_manager::save_trajectory srv;
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
+    save.waitForExistence();
     save.call(srv);
     Say("saving trajectory");
 }
@@ -85,11 +98,11 @@ void ToggleArmMode(){
     if (ArmMode){
         msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
         msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
-        Say("Arm control off");
+        Say("Position mode");
     } else {
         msg2.request.start_controllers.push_back("sara_arm_velocity_controller");
         msg2.request.stop_controllers.push_back("sara_arm_trajectory_controller");
-        Say("Arm control on");
+        Say("Velocity mode");
     }
     msg2.request.strictness = 50;
     Switch.waitForExistence();
@@ -109,13 +122,17 @@ void HandCtrl(sensor_msgs::JoyPtr joy){
 }
 void HeadCtrl(sensor_msgs::JoyPtr joy){
 
+    // Pitch control
     std_msgs::Float64 msg;
     HeadAngle += joy->axes[4]*-0.01;
     HeadAngle = HeadAngle < MAXHEADANGLE ? HeadAngle : MAXHEADANGLE;
     HeadAngle = HeadAngle > MINHEADANGLE ? HeadAngle : MINHEADANGLE;
     msg.data = HeadAngle;
-
     HeadCtrlPub.publish( msg );
+
+    // Yaw control
+    msg.data = joy->axes[3]+joy->axes[0];
+    HeadCtrlPubYaw.publish( msg );
 
 }
 void ArmCtrl(sensor_msgs::JoyPtr joy){
@@ -157,10 +174,14 @@ void BaseVelCtrl(sensor_msgs::JoyPtr joy){
 
     float safety = joy->buttons[4] * joy->buttons[5];
     // linear velocity
-    twister.linear.x = joy->axes[1]*2*safety;
-    twister.linear.y = joy->axes[0]*2*safety;
+    xvel += (joy->axes[1]*2-xvel)*0.2;
+    yvel += (joy->axes[0]*2-yvel)*0.2;
+
+    twister.linear.x = xvel*safety;
+    twister.linear.y = yvel*safety;
     // angular velocity
-    twister.angular.z = safety * (joy->axes[3]);
+    rotvel += (joy->axes[3]-rotvel)*0.075;
+    twister.angular.z = safety * rotvel;
 
     BaseVelCtrlPub.publish( twister );
 }
@@ -176,6 +197,26 @@ void JoyCB( sensor_msgs::JoyPtr joy )
         for ( int i=0; i<joy->buttons.size(); i++ ){
             Buttons[i] = (bool)joy->buttons[i];
         }
+        if (joy->axes[7] > 0.0)
+        {
+            Say(Sentence);
+            sleep(2);
+        }
+        else if(joy->axes[7] < 0.0)
+        {
+            Say("Hello my name is Sara.");
+            sleep(2);
+        }
+        if (joy->axes[6] > 0.0)
+        {
+            Say("Please to meet you.");
+            sleep(2);
+        }
+        else if(joy->axes[6] < 0.0)
+        {
+            Say("I am an assistance robot made by Walking Machine.");
+            sleep(2);
+        }
     } else
     {
         if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
@@ -188,51 +229,79 @@ void JoyCB( sensor_msgs::JoyPtr joy )
     }
 }
 
+void SetSayCB( std_msgs::String sentence )
+{
+    Sentence = sentence.data;
+}
+
 int main(int argc, char **argv) {
+
+    TeleopOn = false;
 
     ros::init(argc, argv, "sara_teleop");
     ros::NodeHandle nh;
 
+    // Waiting for services
+    ros::service::waitForService("controller_manager/load_controller");
+    ros::service::waitForService("controller_manager/list_controllers");
+    ros::service::waitForService("controller_manager/switch_controller");
+    ros::service::waitForService("save_trajectory");
+
+    ROS_INFO("starting publishers");
+    // Publishers
+    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>("sara_arm_velocity_controller/command", 1);
+    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    HeadCtrlPub = nh.advertise<std_msgs::Float64>("/sara_head_pitch_controller/command", 1);
+    HeadCtrlPubYaw = nh.advertise<std_msgs::Float64>("/sara_head_yaw_controller/command", 1);
+    SayPub = nh.advertise<wm_tts::say>("say", 1);
+    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>(
+            "/sara_gripper_action_controller/gripper_cmd/goal", 1);
+
+    ROS_INFO("starting subscribers");
     // Subscribers
     ros::Subscriber ArmStateSub = nh.subscribe("joint_states", 1, &ArmStateCB);
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
+    ros::Subscriber Sentence = nh.subscribe("sentenceToSay", 1, &SetSayCB);
 
-    // Publishers
-    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
-    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
-    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
-    SayPub = nh.advertise<wm_tts::say>( "say", 1 );
-    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>( "/sara_gripper_action_controller/gripper_cmd/goal", 1 );
-
+    ROS_INFO("starting service clients");
     // controller services
-    ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
-    Switch = nh.serviceClient<controller_manager_msgs::SwitchController>( "controller_manager/switch_controller");
-    ROS_INFO("Waiting for controller manager");
+    ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>(
+            "controller_manager/load_controller");
+    Switch = nh.serviceClient<controller_manager_msgs::SwitchController>("controller_manager/switch_controller");
     save = nh.serviceClient<wm_trajectory_manager::save_trajectory>("save_trajectory");
+    ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>(
+            "controller_manager/list_controllers");
 
 
-    ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>( "controller_manager/list_controllers");
+    ROS_INFO("getting controller");
     List.waitForExistence();
     controller_manager_msgs::ListControllers listmsg;
-    List.call(listmsg);
-    unsigned long Length1 = listmsg.response.controller.size();
-    for ( int i=0; i<Length1; i++ ){
-        if( listmsg.response.controller[i].name == "sara_arm_trajectory_controller" ){
-            MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+
+    do {
+        List.call(listmsg);
+        unsigned long Length1 = listmsg.response.controller.size();
+        for (int i = 0; i < Length1; i++) {
+            if (listmsg.response.controller[i].name == "sara_arm_trajectory_controller") {
+                MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+            }
         }
-    }
-    if ( MyTrajectory.joint_names.size() == 0 ) exit(1);
+        if (MyTrajectory.joint_names.size() == 0){
+            sleep(1);
+            continue;
+        } else break;
 
+    } while ( true );
 
+    ROS_INFO("loading controllers");
     // Load controllers
     controller_manager_msgs::LoadController msg;
     Load.waitForExistence( );
     msg.request.name = "sara_arm_velocity_controller";
     Load.call( msg );
-    msg.request.name = "sara_base_mecanum_controller";
-    Load.call( msg );
-    msg.request.name = "sara_head_pitch_controller";
-    Load.call( msg );
+//    msg.request.name = "sara_base_mecanum_controller";
+//    Load.call( msg );
+//    msg.request.name = "sara_head_pitch_controller";
+//    Load.call( msg );
 
 
     // start the loop
