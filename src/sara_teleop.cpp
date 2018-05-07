@@ -64,6 +64,8 @@ void SaveTrajectory(){
     wm_trajectory_manager::save_trajectory srv;
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
+    save.waitForExistence();
+
     save.call(srv);
     Say("saving trajectory");
 }
@@ -160,6 +162,12 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         if (joy->buttons[3] && !Buttons[3]) {
             SaveTrajectory();
         }
+        if (joy->buttons[2] && !Buttons[2]) {
+            AddPointToTrajectory();
+        }
+        if (joy->buttons[3] && !Buttons[3]) {
+            SaveTrajectory();
+        }
     }
     if ( joy->buttons[1] && !Buttons[1] ){
         ToggleArmMode();
@@ -236,42 +244,66 @@ void SetSayCB( std_msgs::String sentence )
 
 int main(int argc, char **argv) {
 
+    TeleopOn = false;
+
     ros::init(argc, argv, "sara_teleop");
     ros::NodeHandle nh;
 
+    // Waiting for services
+    ros::service::waitForService("controller_manager/load_controller");
+    ros::service::waitForService("controller_manager/list_controllers");
+    ros::service::waitForService("controller_manager/switch_controller");
+    ros::service::waitForService("save_trajectory");
+
+
+    ROS_INFO("starting publishers");
+    // Publishers
+    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>("sara_arm_velocity_controller/command", 1);
+    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    HeadCtrlPub = nh.advertise<std_msgs::Float64>("/sara_head_pitch_controller/command", 1);
+    HeadCtrlPubYaw = nh.advertise<std_msgs::Float64>("/sara_head_yaw_controller/command", 1);
+    SayPub = nh.advertise<wm_tts::say>("say", 1);
+    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>(
+            "/sara_gripper_action_controller/gripper_cmd/goal", 1);
+
+
+    ROS_INFO("starting subscribers");
     // Subscribers
     ros::Subscriber ArmStateSub = nh.subscribe("joint_states", 1, &ArmStateCB);
     ros::Subscriber JoySub = nh.subscribe("joy", 1, &JoyCB);
     ros::Subscriber Sentence = nh.subscribe("sentenceToSay", 1, &SetSayCB);
 
-    // Publishers
-    ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>( "sara_arm_velocity_controller/command", 1 );
-    BaseVelCtrlPub = nh.advertise<geometry_msgs::Twist>( "cmd_vel", 1 );
-    HeadCtrlPub = nh.advertise<std_msgs::Float64>( "/sara_head_pitch_controller/command", 1 );
-    HeadCtrlPubYaw = nh.advertise<std_msgs::Float64>( "/sara_head_yaw_controller/command", 1 );
-    SayPub = nh.advertise<wm_tts::say>( "say", 1 );
-    HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>( "/sara_gripper_action_controller/gripper_cmd/goal", 1 );
-
+    ROS_INFO("starting service clients");
     // controller services
-    ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>("controller_manager/load_controller");
-    Switch = nh.serviceClient<controller_manager_msgs::SwitchController>( "controller_manager/switch_controller");
-    ROS_INFO("Waiting for controller manager");
+    ros::ServiceClient Load = nh.serviceClient<controller_manager_msgs::LoadController>(
+            "controller_manager/load_controller");
+    Switch = nh.serviceClient<controller_manager_msgs::SwitchController>("controller_manager/switch_controller");
     save = nh.serviceClient<wm_trajectory_manager::save_trajectory>("save_trajectory");
+    ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>(
+            "controller_manager/list_controllers");
 
 
-    ros::ServiceClient List = nh.serviceClient<controller_manager_msgs::ListControllers>( "controller_manager/list_controllers");
+    ROS_INFO("getting controller");
     List.waitForExistence();
     controller_manager_msgs::ListControllers listmsg;
-    List.call(listmsg);
-    unsigned long Length1 = listmsg.response.controller.size();
-    for ( int i=0; i<Length1; i++ ){
-        if( listmsg.response.controller[i].name == "sara_arm_trajectory_controller" ){
-            MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+
+
+    do {
+        List.call(listmsg);
+        unsigned long Length1 = listmsg.response.controller.size();
+        for (int i = 0; i < Length1; i++) {
+            if (listmsg.response.controller[i].name == "sara_arm_trajectory_controller") {
+                MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
+            }
         }
-    }
-    if ( MyTrajectory.joint_names.size() == 0 ) exit(1);
+        if (MyTrajectory.joint_names.size() == 0){
+            sleep(1);
+            continue;
+        } else break;
 
+    } while ( true );
 
+    ROS_INFO("loading controllers");
     // Load controllers
     controller_manager_msgs::LoadController msg;
     Load.waitForExistence( );
