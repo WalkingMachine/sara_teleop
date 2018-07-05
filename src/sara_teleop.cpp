@@ -65,6 +65,7 @@ void SaveTrajectory(){
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
     save.waitForExistence();
+
     save.call(srv);
     Say("saving trajectory");
 }
@@ -147,13 +148,19 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         ArmVelCtrlPub.publish(VelMsg);
         if (joy->buttons[7] && !Buttons[7]) {
             JointIndex++;
-            if (JointIndex >= NBJOINTS) JointIndex = 0;
-            Say(JointNames[JointIndex]);
+            //if (JointIndex >= NBJOINTS) JointIndex = 0;
+            //Say(JointNames[JointIndex]);
         }
         if (joy->buttons[6] && !Buttons[6]) {
             JointIndex--;
-            if (JointIndex < 0) JointIndex = NBJOINTS - 1;
-            Say(JointNames[JointIndex]);
+            //if (JointIndex < 0) JointIndex = NBJOINTS - 1;
+            //Say(JointNames[JointIndex]);
+        }
+        if (joy->buttons[2] && !Buttons[2]) {
+            AddPointToTrajectory();
+        }
+        if (joy->buttons[3] && !Buttons[3]) {
+            SaveTrajectory();
         }
         if (joy->buttons[2] && !Buttons[2]) {
             AddPointToTrajectory();
@@ -247,6 +254,7 @@ int main(int argc, char **argv) {
     ros::service::waitForService("controller_manager/switch_controller");
     ros::service::waitForService("save_trajectory");
 
+
     ROS_INFO("starting publishers");
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>("sara_arm_velocity_controller/command", 1);
@@ -256,6 +264,7 @@ int main(int argc, char **argv) {
     SayPub = nh.advertise<wm_tts::say>("say", 1);
     HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>(
             "/sara_gripper_action_controller/gripper_cmd/goal", 1);
+
 
     ROS_INFO("starting subscribers");
     // Subscribers
@@ -276,6 +285,7 @@ int main(int argc, char **argv) {
     ROS_INFO("getting controller");
     List.waitForExistence();
     controller_manager_msgs::ListControllers listmsg;
+
 
     do {
         List.call(listmsg);
