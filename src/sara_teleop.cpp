@@ -230,8 +230,7 @@ void JoyCB( sensor_msgs::JoyPtr joy )
             //if (joy->buttons[4] && joy->buttons[5])
         {
             ROS_INFO("Teleop is now on. Please be gentle with me.");
-            //Say( "Good! I'm now ready to move. Press B to take control of my arm or A to open or close my gripper." );
-            Say( "Good. I am under your control now." );
+            Say( "I'm now in teleop mode. Press B to take control of my arm or press A to control my gripper." );
             TeleopOn = true;
         }
     }
@@ -317,8 +316,6 @@ int main(int argc, char **argv) {
 
     // start the loop
     ROS_INFO("Teleop_is_off. Press both triggers to turn it on.");
-    //Say( "I'm now in teleop mode, press both triggers to turn me on." );
-    Say("teleop mode activated");
     ros::spin();
 
 
