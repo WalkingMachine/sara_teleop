@@ -40,19 +40,22 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
 
-  <run_depend>controller_manager</run_depend>
   <build_depend>controller_manager</build_depend>
-  <run_depend>roscpp</run_depend>
   <build_depend>roscpp</build_depend>
-  <run_depend>joy</run_depend>
   <build_depend>joy</build_depend>
-  <run_depend>wm_tts</run_depend>
   <build_depend>wm_tts</build_depend>
-  <run_depend>trajectory_msgs</run_depend>
   <build_depend>trajectory_msgs</build_depend>
-  <run_depend>wm_trajectory_manager</run_depend>
   <build_depend>wm_trajectory_manager</build_depend>
+  <build_depend>message_runtime</build_depend>
 
+
+  <run_depend>controller_manager</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>joy</run_depend>
+  <run_depend>wm_tts</run_depend>
+  <run_depend>trajectory_msgs</run_depend>
+  <run_depend>wm_trajectory_manager</run_depend>
+  <run_depend>message_runtime</run_depend>
 
   <buildtool_depend>catkin</buildtool_depend>
 
