@@ -6,10 +6,10 @@ project(sara_teleop)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
     roscpp
-    wm_tts
     controller_manager
     trajectory_msgs
     wm_trajectory_manager
+    message_runtime
 )
 
 
@@ -102,10 +102,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-        #        INCLUDE_DIRS include
-        #        CATKIN_DEPENDS actionlib actionlib_msgs move_base_msgs roscpp message_generation std_srvs std_msgs
+        LIBRARIES sara_teleop
+        CATKIN_DEPENDS roscpp message_runtime wm_tts
 )
-
 
 ###########
 ## Build ##
@@ -182,3 +181,5 @@ target_link_libraries(sara_teleop ${catkin_LIBRARIES} rt)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+#add_dependencies(wm_tts ${catkin_EXPORTED_TARGETS})
