@@ -65,6 +65,7 @@ void SaveTrajectory(){
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
     save.waitForExistence();
+
     save.call(srv);
     Say("saving trajectory");
 }
@@ -247,6 +248,7 @@ int main(int argc, char **argv) {
     ros::service::waitForService("controller_manager/switch_controller");
     ros::service::waitForService("save_trajectory");
 
+
     ROS_INFO("starting publishers");
     // Publishers
     ArmVelCtrlPub = nh.advertise<std_msgs::Float64MultiArray>("sara_arm_velocity_controller/command", 1);
@@ -256,6 +258,7 @@ int main(int argc, char **argv) {
     SayPub = nh.advertise<wm_tts::say>("say", 1);
     HandCtrlPub = nh.advertise<control_msgs::GripperCommandActionGoal>(
             "/sara_gripper_action_controller/gripper_cmd/goal", 1);
+
 
     ROS_INFO("starting subscribers");
     // Subscribers
@@ -276,6 +279,7 @@ int main(int argc, char **argv) {
     ROS_INFO("getting controller");
     List.waitForExistence();
     controller_manager_msgs::ListControllers listmsg;
+
 
     do {
         List.call(listmsg);
