@@ -83,7 +83,7 @@ void AddPointToTrajectory(){
         }
     }
     ros::Duration T;
-    T.fromSec( (MyTrajectory.points.size()+1) );
+    T.fromSec( (MyTrajectory.points.size()+0.5) );
     Point.time_from_start = T;
     MyTrajectory.points.push_back(Point);
     Say("adding point");
@@ -98,11 +98,11 @@ void ToggleArmMode(){
     if (ArmMode){
         msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
         msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
-        Say("Position mode");
+//        Say("Position mode");
     } else {
         msg2.request.start_controllers.push_back("sara_arm_velocity_controller");
         msg2.request.stop_controllers.push_back("sara_arm_trajectory_controller");
-        Say("Velocity mode");
+//        Say("Velocity mode");
     }
     msg2.request.strictness = 50;
     Switch.waitForExistence();
@@ -148,12 +148,12 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
         if (joy->buttons[7] && !Buttons[7]) {
             JointIndex++;
             if (JointIndex >= NBJOINTS) JointIndex = 0;
-            Say(JointNames[JointIndex]);
+            //Say(JointNames[JointIndex]);
         }
         if (joy->buttons[6] && !Buttons[6]) {
             JointIndex--;
             if (JointIndex < 0) JointIndex = NBJOINTS - 1;
-            Say(JointNames[JointIndex]);
+            //Say(JointNames[JointIndex]);
         }
         if (joy->buttons[2] && !Buttons[2]) {
             AddPointToTrajectory();
@@ -204,17 +204,17 @@ void JoyCB( sensor_msgs::JoyPtr joy )
         }
         else if(joy->axes[7] < 0.0)
         {
-            Say("Hello my name is Sara.");
+            Say("Bonjours, mon nom est Sara.");
             sleep(2);
         }
         if (joy->axes[6] > 0.0)
         {
-            Say("Please to meet you.");
+            Say("Je suis heureuse de vous rencontrer.");
             sleep(2);
         }
         else if(joy->axes[6] < 0.0)
         {
-            Say("I am an assistance robot made by Walking Machine.");
+            Say("Je suis un robot d'assistance personnelle construit et programmé par le club Oualking Machine.");
             sleep(2);
         }
     } else
@@ -223,7 +223,7 @@ void JoyCB( sensor_msgs::JoyPtr joy )
             //if (joy->buttons[4] && joy->buttons[5])
         {
             ROS_INFO("Teleop is now on. Please be gentle with me.");
-            Say( "I'm now in teleop mode. Press B to take control of my arm or press A to control my gripper." );
+//            Say( "I'm now in teleop mode. Press B to take control of my arm or press A to control my gripper." );
             TeleopOn = true;
         }
     }
