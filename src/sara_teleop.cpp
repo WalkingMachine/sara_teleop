@@ -37,7 +37,7 @@ bool ArmMode = false;
 double rotvel = 0;
 double xvel = 0;
 double yvel = 0;
-bool toogleOnOffMem{false};
+bool toogleOnOffMem{true};
 
 std::string Sentence = "";
 
@@ -212,22 +212,21 @@ void JoyCB(sensor_msgs::JoyPtr joy) {
             Say("Je suis un robot d'assistance personnelle construit et programmé par le club Oualking Machine.");
             sleep(2);
         }
-    } else {
-        if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
-            //if (joy->buttons[4] && joy->buttons[5])
-        {
-            if (toogleOnOffMem) {
+    }
+    if (joy->axes[2] < -0.9 && joy->axes[5] < -0.9) {
+        if (toogleOnOffMem) {
+            ROS_INFO("TOOGLE!");
+            if (TeleopOn) {
                 ROS_INFO("Teleop is now off. I should be able to take care of myself for the time being");
                 TeleopOn = false;
             } else {
                 ROS_INFO("Teleop is now on. Please be gentle with me.");
-                //            Say( "I'm now in teleop mode. Press B to take control of my arm or press A to control my gripper." );
                 TeleopOn = true;
             }
             toogleOnOffMem = false;
-        } else {
-            toogleOnOffMem = true;
         }
+    } else {
+        toogleOnOffMem = true;
     }
 }
 
