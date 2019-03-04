@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
     trajectory_msgs
     wm_trajectory_manager
     message_runtime
+    wm_tts
 )
 
 
