@@ -183,4 +183,4 @@ target_link_libraries(sara_teleop ${catkin_LIBRARIES} rt)
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_dependencies(wm_tts ${catkin_EXPORTED_TARGETS})
+#add_dependencies(wm_tts ${catkin_EXPORTED_TARGETS})
