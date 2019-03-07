@@ -30,13 +30,14 @@ ros::Publisher HeadCtrlPubYaw;
 ros::Publisher HandCtrlPub;
 bool TeleopOn = false;
 int JointIndex = 0;
-bool Buttons[30] = {false};
+bool buttonsAlreadyPressed[30] = {false};
 double HeadAngle = 0;
 double HandState = 0.1;
 bool ArmMode = false;
 double rotvel = 0;
 double xvel = 0;
 double yvel = 0;
+bool toogleOnOffMem{true};
 
 std::string Sentence = "";
 
@@ -44,23 +45,17 @@ ros::ServiceClient Switch;
 trajectory_msgs::JointTrajectory MyTrajectory;
 ros::ServiceClient save;
 std::string JointNames[NBJOINTS] = {
-        "right shoulder roll joint"
-        , "right shoulder pitch joint"
-        , "right shoulder yaw joint"
-        , "right elbow pitch joint"
-        , "right elbow yaw joint"
-        , "right wrist pitch joint"
-        , "right wrist roll joint"};
+        "right shoulder roll joint", "right shoulder pitch joint", "right shoulder yaw joint",
+        "right elbow pitch joint", "right elbow yaw joint", "right wrist pitch joint", "right wrist roll joint"};
 
 
-
-void Say( std::string sentence ){
+void Say(std::string sentence) {
     wm_tts::say msg;
     msg.sentence = sentence;
-    SayPub.publish( msg );
+    SayPub.publish(msg);
 }
 
-void SaveTrajectory(){
+void SaveTrajectory() {
     wm_trajectory_manager::save_trajectory srv;
     srv.request.trajectory = MyTrajectory;
     srv.request.file = "new_trajectory";
@@ -69,74 +64,80 @@ void SaveTrajectory(){
     save.call(srv);
     Say("saving trajectory");
 }
-void ResetTrajectory(){
+
+void ResetTrajectory() {
     MyTrajectory.points.clear();
 }
-void AddPointToTrajectory(){
+
+void AddPointToTrajectory() {
     trajectory_msgs::JointTrajectoryPoint Point;
     unsigned long Length1 = CurArmState.name.size();
     unsigned long Length2 = MyTrajectory.joint_names.size();
-    for ( int i = 0; i < Length1; i++ ) {
-        for ( int j=0; j<Length2; j++){
-            if ( CurArmState.name[i] == MyTrajectory.joint_names[j] ){
-                Point.positions.push_back( CurArmState.position[i] );
+    for (int i = 0; i < Length1; i++) {
+        for (int j = 0; j < Length2; j++) {
+            if (CurArmState.name[i] == MyTrajectory.joint_names[j]) {
+                Point.positions.push_back(CurArmState.position[i]);
             }
         }
     }
     ros::Duration T;
-    T.fromSec( (MyTrajectory.points.size()+0.5) );
+    T.fromSec((MyTrajectory.points.size() + 0.5));
     Point.time_from_start = T;
     MyTrajectory.points.push_back(Point);
     Say("adding point");
 }
-void ArmStateCB(sensor_msgs::JointState State){
+
+void ArmStateCB(sensor_msgs::JointState State) {
     CurArmState = State;
 }
 
-void ToggleArmMode(){
+void ToggleArmMode() {
     // switch arm to trajectory mode mode
     controller_manager_msgs::SwitchController msg2;
-    if (ArmMode){
+    if (ArmMode) {
         msg2.request.start_controllers.push_back("sara_arm_trajectory_controller");
         msg2.request.stop_controllers.push_back("sara_arm_velocity_controller");
-//        Say("Position mode");
+        //        Say("Position mode");
     } else {
         msg2.request.start_controllers.push_back("sara_arm_velocity_controller");
         msg2.request.stop_controllers.push_back("sara_arm_trajectory_controller");
-//        Say("Velocity mode");
+        //        Say("Velocity mode");
     }
     msg2.request.strictness = 50;
     Switch.waitForExistence();
     Switch.call(msg2);
     ArmMode = !ArmMode;
 }
-void HandCtrl(sensor_msgs::JoyPtr joy){
-    if ( joy->buttons[0] && !Buttons[0] ){
-        if ( HandState == 0 )
+
+void HandCtrl(sensor_msgs::JoyPtr joy) {
+    if (joy->buttons[0] && !buttonsAlreadyPressed[0]) {
+        if (HandState == 0)
             HandState = 0.1;
         else
             HandState = 0;
         control_msgs::GripperCommandActionGoal msg;
         msg.goal.command.position = HandState;
-        HandCtrlPub.publish( msg );
+        HandCtrlPub.publish(msg);
     }
 }
-void HeadCtrl(sensor_msgs::JoyPtr joy){
+
+void HeadCtrl(sensor_msgs::JoyPtr joy) {
 
     // Pitch control
     std_msgs::Float64 msg;
-    HeadAngle += joy->axes[4]*-0.01;
+    HeadAngle += joy->axes[4] * -0.01;
     HeadAngle = HeadAngle < MAXHEADANGLE ? HeadAngle : MAXHEADANGLE;
     HeadAngle = HeadAngle > MINHEADANGLE ? HeadAngle : MINHEADANGLE;
     msg.data = HeadAngle;
-    HeadCtrlPub.publish( msg );
+    HeadCtrlPub.publish(msg);
 
     // Yaw control
-    msg.data = joy->axes[3]+joy->axes[0];
-    HeadCtrlPubYaw.publish( msg );
+    msg.data = joy->axes[3] + joy->axes[0];
+    HeadCtrlPubYaw.publish(msg);
 
 }
-void ArmCtrl(sensor_msgs::JoyPtr joy){
+
+void ArmCtrl(sensor_msgs::JoyPtr joy) {
     if (ArmMode) {
         std_msgs::Float64MultiArray VelMsg;
         for (int i = 0; i < NBJOINTS; i++) {
@@ -146,92 +147,90 @@ void ArmCtrl(sensor_msgs::JoyPtr joy){
             VelMsg.data.push_back(vel);
         }
         ArmVelCtrlPub.publish(VelMsg);
-        if (joy->buttons[7] && !Buttons[7]) {
+        if (joy->buttons[7] && !buttonsAlreadyPressed[7]) {
             JointIndex++;
             if (JointIndex >= NBJOINTS) JointIndex = 0;
             //Say(JointNames[JointIndex]);
         }
-        if (joy->buttons[6] && !Buttons[6]) {
+        if (joy->buttons[6] && !buttonsAlreadyPressed[6]) {
             JointIndex--;
             if (JointIndex < 0) JointIndex = NBJOINTS - 1;
             //Say(JointNames[JointIndex]);
         }
-        if (joy->buttons[2] && !Buttons[2]) {
+        if (joy->buttons[2] && !buttonsAlreadyPressed[2]) {
             AddPointToTrajectory();
         }
-        if (joy->buttons[3] && !Buttons[3]) {
+        if (joy->buttons[3] && !buttonsAlreadyPressed[3]) {
             SaveTrajectory();
         }
     }
-    if ( joy->buttons[1] && !Buttons[1] ){
+    if (joy->buttons[1] && !buttonsAlreadyPressed[1]) {
         ToggleArmMode();
         ResetTrajectory();
     }
 
 }
 
-void BaseVelCtrl(sensor_msgs::JoyPtr joy){
+void BaseVelCtrl(sensor_msgs::JoyPtr joy) {
     geometry_msgs::Twist twister;
 
     float safety = joy->buttons[4] * joy->buttons[5];
     // linear velocity
-    xvel += (joy->axes[1]*2-xvel)*0.2;
-    yvel += (joy->axes[0]*2-yvel)*0.2;
+    xvel += (joy->axes[1] * 2 - xvel) * 0.2;
+    yvel += (joy->axes[0] * 2 - yvel) * 0.2;
 
-    twister.linear.x = xvel*safety;
-    twister.linear.y = yvel*safety;
+    twister.linear.x = xvel * safety;
+    twister.linear.y = yvel * safety;
     // angular velocity
-    rotvel += (joy->axes[3]-rotvel)*0.075;
+    rotvel += (joy->axes[3] - rotvel) * 0.075;
     twister.angular.z = safety * rotvel;
 
-    BaseVelCtrlPub.publish( twister );
+    BaseVelCtrlPub.publish(twister);
 }
-void JoyCB( sensor_msgs::JoyPtr joy )
-{
-    if (TeleopOn)
-    {
+
+void JoyCB(sensor_msgs::JoyPtr joy) {
+    if (TeleopOn) {
         geometry_msgs::Twist twister;
         BaseVelCtrl(joy);
-        ArmCtrl( joy);
-        HeadCtrl( joy );
-        HandCtrl( joy );
-        for ( int i=0; i<joy->buttons.size(); i++ ){
-            Buttons[i] = (bool)joy->buttons[i];
+        ArmCtrl(joy);
+        HeadCtrl(joy);
+        HandCtrl(joy);
+        for (int i = 0; i < joy->buttons.size(); i++) {
+            buttonsAlreadyPressed[i] = (bool) joy->buttons[i];
         }
-        if (joy->axes[7] > 0.0)
-        {
+        if (joy->axes[7] > 0.0) {
             Say(Sentence);
             sleep(2);
-        }
-        else if(joy->axes[7] < 0.0)
-        {
+        } else if (joy->axes[7] < 0.0) {
             Say("Bonjours, mon nom est Sara.");
             sleep(2);
         }
-        if (joy->axes[6] > 0.0)
-        {
+        if (joy->axes[6] > 0.0) {
             Say("Je suis heureuse de vous rencontrer.");
             sleep(2);
-        }
-        else if(joy->axes[6] < 0.0)
-        {
+        } else if (joy->axes[6] < 0.0) {
             Say("Je suis un robot d'assistance personnelle construit et programmé par le club Oualking Machine.");
             sleep(2);
         }
-    } else
-    {
-        if (joy->axes[2] > 0.9 && joy->axes[5] > 0.9)
-            //if (joy->buttons[4] && joy->buttons[5])
-        {
-            ROS_INFO("Teleop is now on. Please be gentle with me.");
-//            Say( "I'm now in teleop mode. Press B to take control of my arm or press A to control my gripper." );
-            TeleopOn = true;
+    }
+    if (joy->axes[2] < -0.9 && joy->axes[5] < -0.9) {
+        if (toogleOnOffMem) {
+            ROS_INFO("TOOGLE!");
+            if (TeleopOn) {
+                ROS_INFO("Teleop is now off. I should be able to take care of myself for the time being");
+                TeleopOn = false;
+            } else {
+                ROS_INFO("Teleop is now on. Please be gentle with me.");
+                TeleopOn = true;
+            }
+            toogleOnOffMem = false;
         }
+    } else {
+        toogleOnOffMem = true;
     }
 }
 
-void SetSayCB( std_msgs::String sentence )
-{
+void SetSayCB(std_msgs::String sentence) {
     Sentence = sentence.data;
 }
 
@@ -289,23 +288,23 @@ int main(int argc, char **argv) {
                 MyTrajectory.joint_names = listmsg.response.controller[i].claimed_resources[0].resources;
             }
         }
-        if (MyTrajectory.joint_names.size() == 0){
+        if (MyTrajectory.joint_names.size() == 0) {
             sleep(1);
             continue;
         } else break;
 
-    } while ( true );
+    } while (true);
 
     ROS_INFO("loading controllers");
     // Load controllers
     controller_manager_msgs::LoadController msg;
-    Load.waitForExistence( );
+    Load.waitForExistence();
     msg.request.name = "sara_arm_velocity_controller";
-    Load.call( msg );
-//    msg.request.name = "sara_base_mecanum_controller";
-//    Load.call( msg );
-//    msg.request.name = "sara_head_pitch_controller";
-//    Load.call( msg );
+    Load.call(msg);
+    //    msg.request.name = "sara_base_mecanum_controller";
+    //    Load.call( msg );
+    //    msg.request.name = "sara_head_pitch_controller";
+    //    Load.call( msg );
 
 
     // start the loop
