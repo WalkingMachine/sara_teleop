@@ -17,7 +17,7 @@
 #include <wm_trajectory_manager/save_trajectory.h>
 #include <stdio.h>
 
-#define NBJOINTS 7
+#define NBJOINTS 8
 #define MAXHEADANGLE 0.8
 #define MINHEADANGLE -0.8
 
@@ -46,7 +46,7 @@ trajectory_msgs::JointTrajectory MyTrajectory;
 ros::ServiceClient save;
 std::string JointNames[NBJOINTS] = {
         "right shoulder roll joint", "right shoulder pitch joint", "right shoulder yaw joint",
-        "right elbow pitch joint", "right elbow yaw joint", "right wrist pitch joint", "right wrist roll joint"};
+        "right elbow pitch joint", "right elbow yaw joint", "right wrist pitch joint", "right wrist roll joint", "Base actuator joint"};
 
 
 void Say(std::string sentence) {
