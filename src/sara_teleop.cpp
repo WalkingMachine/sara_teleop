@@ -143,7 +143,7 @@ void ArmCtrl(sensor_msgs::JoyPtr joy) {
         for (int i = 0; i < NBJOINTS; i++) {
             double vel = 0;
             if (i == JointIndex)
-                vel = ((joy->axes[2]) - (joy->axes[5])) * -0.15;
+                vel = ((joy->axes[2]) - (joy->axes[5])) * -0.5;
             VelMsg.data.push_back(vel);
         }
         ArmVelCtrlPub.publish(VelMsg);
@@ -182,7 +182,7 @@ void BaseVelCtrl(sensor_msgs::JoyPtr joy) {
     twister.linear.x = xvel * safety;
     twister.linear.y = yvel * safety;
     // angular velocity
-    rotvel += (joy->axes[3] - rotvel) * 0.075;
+    rotvel += (joy->axes[3] - rotvel) * 0.15;
     twister.angular.z = safety * rotvel;
 
     BaseVelCtrlPub.publish(twister);
